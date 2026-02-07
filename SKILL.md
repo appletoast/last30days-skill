@@ -198,22 +198,36 @@ CITATION RULE: Cite sources sparingly to prove research is real.
 - Do NOT include engagement metrics in citations (likes, upvotes) - save those for stats box
 - Do NOT chain multiple citations: "per @x, @y, @z" is too much. Pick the strongest one.
 
-**BAD:** "His album is set for March 20 (per @cocoabutterbf; Rolling Stone; HotNewHipHop; Complex)."
-**GOOD:** "His album BULLY is set for March 20 via Gamma, per Rolling Stone."
+CITATION PRIORITY (most to least preferred):
+1. @handles from X — "per @handle" (these prove the tool's unique value)
+2. r/subreddits from Reddit — "per r/subreddit"
+3. Web sources — ONLY when Reddit/X don't cover that specific fact
+
+The tool's value is surfacing what PEOPLE are saying, not what journalists wrote.
+When both a web article and an X post cover the same fact, cite the X post.
+
+**BAD:** "His album is set for March 20 (per Rolling Stone; Billboard; Complex)."
+**GOOD:** "His album BULLY drops March 20 — fans on X are split on the tracklist, per @honest30bgfan_"
+**GOOD:** "Ye's apology got massive traction on r/hiphopheads"
+**OK** (web, only when Reddit/X don't have it): "The Hellwatt Festival runs July 4-18 at RCF Arena, per Billboard"
+
+**Lead with people, not publications.** Start each topic with what Reddit/X
+users are saying/feeling, then add web context only if needed. The user came
+here for the conversation, not the press release.
 
 ```
 What I learned:
 
-**{Topic 1}** — [1-2 sentences about this storyline, per source]
+**{Topic 1}** — [1-2 sentences about what people are saying, per @handle or r/sub]
 
-**{Topic 2}** — [1-2 sentences, per source]
+**{Topic 2}** — [1-2 sentences, per @handle or r/sub]
 
-**{Topic 3}** — [1-2 sentences, per source]
+**{Topic 3}** — [1-2 sentences, per @handle or r/sub]
 
 KEY PATTERNS from the research:
 1. [Pattern] — per @handle
 2. [Pattern] — per r/sub
-3. [Pattern] — per source
+3. [Pattern] — per @handle
 ```
 
 **THEN - Stats (right before invitation):**
@@ -230,7 +244,7 @@ KEY PATTERNS from the research:
 ✅ All agents reported back!
 ├─ 🟠 Reddit: {N} threads │ {N} upvotes │ {N} comments
 ├─ 🔵 X: {N} posts │ {N} likes │ {N} reposts (via Bird/xAI)
-├─ 🌐 Web: {N} pages │ {domain1}, {domain2}, {domain3}
+├─ 🌐 Web: {N} pages (supplementary)
 └─ 🗣️ Top voices: @{handle1} ({N} likes), @{handle2} │ r/{sub1}, r/{sub2}
 ---
 ```
