@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-last30days - Research a topic from the last 30 days on Reddit + X.
+last30days - Research a topic from the last 30 days on Reddit + X + YouTube + Web.
 
 Usage:
     python3 last30days.py <topic> [options]
@@ -12,6 +12,8 @@ Options:
     --quick             Faster research with fewer sources (8-12 each)
     --deep              Comprehensive research with more sources (50-70 Reddit, 40-60 X)
     --debug             Enable verbose debug logging
+    --store             Persist findings to SQLite database
+    --diagnose          Show source availability diagnostics and exit
 """
 
 import argparse
@@ -235,6 +237,58 @@ def _search_youtube(
     return youtube_items, youtube_error
 
 
+def _search_web(
+    topic: str,
+    config: dict,
+    from_date: str,
+    to_date: str,
+    depth: str,
+) -> tuple:
+    """Search the web via native API backend (runs in thread).
+
+    Uses the best available backend: Parallel AI > Brave > OpenRouter.
+
+    Returns:
+        Tuple of (web_items, web_error)
+        web_items are raw dicts ready for websearch.normalize_websearch_items()
+    """
+    from lib import brave_search, parallel_search, openrouter_search
+
+    backend = env.get_web_search_source(config)
+    if not backend:
+        return [], "No web search API keys configured"
+
+    web_error = None
+    raw_results = []
+
+    try:
+        if backend == "parallel":
+            raw_results = parallel_search.search_web(
+                topic, from_date, to_date, config["PARALLEL_API_KEY"], depth=depth,
+            )
+        elif backend == "brave":
+            raw_results = brave_search.search_web(
+                topic, from_date, to_date, config["BRAVE_API_KEY"], depth=depth,
+            )
+        elif backend == "openrouter":
+            raw_results = openrouter_search.search_web(
+                topic, from_date, to_date, config["OPENROUTER_API_KEY"], depth=depth,
+            )
+    except Exception as e:
+        return [], f"{type(e).__name__}: {e}"
+
+    # Add IDs and date_confidence for websearch.normalize_websearch_items()
+    for i, item in enumerate(raw_results):
+        item.setdefault("id", f"W{i+1}")
+        if item.get("date") and not item.get("date_confidence"):
+            item["date_confidence"] = "med"
+        elif not item.get("date"):
+            item["date_confidence"] = "low"
+        item.setdefault("why_relevant", "")
+
+    return raw_results, web_error
+
+
 def _run_supplemental(
     topic: str,
     reddit_items: list,
@@ -374,29 +428,52 @@ def run_research(
     """Run the research pipeline.
 
     Returns:
-        Tuple of (reddit_items, x_items, youtube_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error)
+        Tuple of (reddit_items, x_items, youtube_items, web_items, web_needed,
+                  raw_openai, raw_xai, raw_reddit_enriched,
+                  reddit_error, x_error, youtube_error, web_error)
 
-    Note: web_needed is True when web search should be performed by the assistant.
-    The script outputs a marker and the assistant handles web search in its session.
+    Note: web_needed is True when web search should be performed by the assistant
+    (i.e., no native web search API keys are configured). When native web search
+    runs, web_items will be populated and web_needed will be False.
     """
     reddit_items = []
     x_items = []
     youtube_items = []
+    web_items = []
     raw_openai = None
     raw_xai = None
     raw_reddit_enriched = []
     reddit_error = None
     x_error = None
     youtube_error = None
+    web_error = None
 
-    # Check if WebSearch is needed (always needed in web-only mode)
-    web_needed = sources in ("all", "web", "reddit-web", "x-web")
+    # Determine web search mode
+    do_web = sources in ("all", "web", "reddit-web", "x-web")
+    web_backend = env.get_web_search_source(config) if do_web else None
+    web_needed = do_web and not web_backend
 
-    # Web-only mode: no API calls needed, assistant handles everything
+    # Web-only mode
     if sources == "web":
-        if progress:
-            progress.start_web_only()
-            progress.end_web_only()
+        if web_backend:
+            # Native web search available — run it
+            sys.stderr.write(f"[web] Searching via {web_backend}\n")
+            sys.stderr.flush()
+            try:
+                web_items, web_error = _search_web(topic, config, from_date, to_date, depth)
+                if web_error and progress:
+                    progress.show_error(f"Web error: {web_error}")
+            except Exception as e:
+                web_error = f"{type(e).__name__}: {e}"
+                if progress:
+                    progress.show_error(f"Web error: {e}")
+            sys.stderr.write(f"[web] {len(web_items)} results\n")
+            sys.stderr.flush()
+        else:
+            # No native backend — assistant handles WebSearch
+            if progress:
+                progress.start_web_only()
+                progress.end_web_only()
         # Still run YouTube in web-only mode if yt-dlp is available
         if run_youtube:
             if progress:
@@ -411,17 +488,18 @@ def run_research(
                     progress.show_error(f"YouTube error: {e}")
             if progress:
                 progress.end_youtube(len(youtube_items))
-        return reddit_items, x_items, youtube_items, True, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error
+        return reddit_items, x_items, youtube_items, web_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error, web_error
 
     # Determine which searches to run
     do_reddit = sources in ("both", "reddit", "all", "reddit-web")
     do_x = sources in ("both", "x", "all", "x-web")
 
-    # Run Reddit, X, and YouTube searches in parallel
+    # Run Reddit, X, YouTube, and Web searches in parallel
     reddit_future = None
     x_future = None
     youtube_future = None
-    max_workers = 2 + (1 if run_youtube else 0)
+    web_future = None
+    max_workers = 2 + (1 if run_youtube else 0) + (1 if web_backend else 0)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit searches
@@ -446,6 +524,13 @@ def run_research(
                 progress.start_youtube()
             youtube_future = executor.submit(
                 _search_youtube, topic, from_date, to_date, depth
+            )
+
+        if web_backend:
+            sys.stderr.write(f"[web] Searching via {web_backend}\n")
+            sys.stderr.flush()
+            web_future = executor.submit(
+                _search_web, topic, config, from_date, to_date, depth
             )
 
         # Collect results
@@ -485,6 +570,18 @@ def run_research(
             if progress:
                 progress.end_youtube(len(youtube_items))
 
+        if web_future:
+            try:
+                web_items, web_error = web_future.result()
+                if web_error and progress:
+                    progress.show_error(f"Web error: {web_error}")
+            except Exception as e:
+                web_error = f"{type(e).__name__}: {e}"
+                if progress:
+                    progress.show_error(f"Web error: {e}")
+            sys.stderr.write(f"[web] {len(web_items)} results\n")
+            sys.stderr.flush()
+
     # Enrich Reddit items with real data (sequential, but with error handling per-item)
     if reddit_items:
         if progress:
@@ -522,7 +619,7 @@ def run_research(
         if sup_x:
             x_items.extend(sup_x)
 
-    return reddit_items, x_items, youtube_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error
+    return reddit_items, x_items, youtube_items, web_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error, web_error
 
 
 def main():
@@ -576,6 +673,16 @@ def main():
         metavar="N",
         help="Number of days to look back (1-30, default: 30)",
     )
+    parser.add_argument(
+        "--store",
+        action="store_true",
+        help="Persist findings to SQLite database (~/.local/share/last30days/research.db)",
+    )
+    parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Show source availability diagnostics and exit",
+    )
 
     args = parser.parse_args()
 
@@ -597,12 +704,6 @@ def main():
     else:
         depth = "default"
 
-    # Validate topic first (matches original NUX)
-    if not args.topic:
-        print("Error: Please provide a topic to research.", file=sys.stderr)
-        print("Usage: python3 last30days.py <topic> [options]", file=sys.stderr)
-        sys.exit(1)
-
     # Load config
     config = env.get_config()
 
@@ -612,6 +713,31 @@ def main():
 
     # Auto-detect yt-dlp for YouTube search
     has_ytdlp = env.is_ytdlp_available()
+
+    # --diagnose: show source availability and exit
+    if args.diagnose:
+        web_source = env.get_web_search_source(config)
+        diag = {
+            "openai": bool(config.get("OPENAI_API_KEY")),
+            "xai": bool(config.get("XAI_API_KEY")),
+            "x_source": x_source_status["source"],
+            "bird_installed": x_source_status["bird_installed"],
+            "bird_authenticated": x_source_status["bird_authenticated"],
+            "bird_username": x_source_status.get("bird_username"),
+            "youtube": has_ytdlp,
+            "web_search_backend": web_source,
+            "parallel_ai": bool(config.get("PARALLEL_API_KEY")),
+            "brave": bool(config.get("BRAVE_API_KEY")),
+            "openrouter": bool(config.get("OPENROUTER_API_KEY")),
+        }
+        print(json.dumps(diag, indent=2))
+        sys.exit(0)
+
+    # Validate topic (--diagnose doesn't need one)
+    if not args.topic:
+        print("Error: Please provide a topic to research.", file=sys.stderr)
+        print("Usage: python3 last30days.py <topic> [options]", file=sys.stderr)
+        sys.exit(1)
 
     # Initialize progress display with topic
     progress = ui.ProgressDisplay(args.topic, show_banner=True)
@@ -689,7 +815,7 @@ def main():
         mode = sources
 
     # Run research
-    reddit_items, x_items, youtube_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error = run_research(
+    reddit_items, x_items, youtube_items, web_items, web_needed, raw_openai, raw_xai, raw_reddit_enriched, reddit_error, x_error, youtube_error, web_error = run_research(
         args.topic,
         sources,
         config,
@@ -710,27 +836,32 @@ def main():
     normalized_reddit = normalize.normalize_reddit_items(reddit_items, from_date, to_date)
     normalized_x = normalize.normalize_x_items(x_items, from_date, to_date)
     normalized_youtube = normalize.normalize_youtube_items(youtube_items, from_date, to_date) if youtube_items else []
+    normalized_web = websearch.normalize_websearch_items(web_items, from_date, to_date) if web_items else []
 
     # Hard date filter: exclude items with verified dates outside the range
     # This is the safety net - even if prompts let old content through, this filters it
     filtered_reddit = normalize.filter_by_date_range(normalized_reddit, from_date, to_date)
     filtered_x = normalize.filter_by_date_range(normalized_x, from_date, to_date)
     filtered_youtube = normalize.filter_by_date_range(normalized_youtube, from_date, to_date) if normalized_youtube else []
+    filtered_web = normalize.filter_by_date_range(normalized_web, from_date, to_date) if normalized_web else []
 
     # Score items
     scored_reddit = score.score_reddit_items(filtered_reddit)
     scored_x = score.score_x_items(filtered_x)
     scored_youtube = score.score_youtube_items(filtered_youtube) if filtered_youtube else []
+    scored_web = score.score_websearch_items(filtered_web) if filtered_web else []
 
     # Sort items
     sorted_reddit = score.sort_items(scored_reddit)
     sorted_x = score.sort_items(scored_x)
     sorted_youtube = score.sort_items(scored_youtube) if scored_youtube else []
+    sorted_web = score.sort_items(scored_web) if scored_web else []
 
     # Dedupe items
     deduped_reddit = dedupe.dedupe_reddit(sorted_reddit)
     deduped_x = dedupe.dedupe_x(sorted_x)
     deduped_youtube = dedupe.dedupe_youtube(sorted_youtube) if sorted_youtube else []
+    deduped_web = websearch.dedupe_websearch(sorted_web) if sorted_web else []
 
     # Minimum result guarantee: if all Reddit results were filtered out but
     # we had raw results, keep top 3 by relevance regardless of score
@@ -753,9 +884,11 @@ def main():
     report.reddit = deduped_reddit
     report.x = deduped_x
     report.youtube = deduped_youtube
+    report.web = deduped_web
     report.reddit_error = reddit_error
     report.x_error = x_error
     report.youtube_error = youtube_error
+    report.web_error = web_error
 
     # Generate context snippet
     report.context_snippet_md = render.render_context_snippet(report)
@@ -771,6 +904,68 @@ def main():
 
     # Output result
     output_result(report, args.emit, web_needed, args.topic, from_date, to_date, missing_keys, args.days)
+
+    # Persist findings to SQLite if requested
+    if args.store:
+        import store as store_mod
+        store_mod.init_db()
+        topic_row = store_mod.add_topic(args.topic)
+        topic_id = topic_row["id"]
+        run_id = store_mod.record_run(topic_id, source_mode=mode, status="completed")
+
+        findings = []
+        for item in deduped_reddit:
+            findings.append({
+                "source": "reddit",
+                "url": item.url,
+                "title": item.title,
+                "author": item.subreddit,
+                "content": item.title,
+                "engagement_score": item.engagement.score if item.engagement else 0,
+                "relevance_score": item.relevance,
+            })
+        for item in deduped_x:
+            findings.append({
+                "source": "x",
+                "url": item.url,
+                "title": item.text[:100],
+                "author": item.author_handle,
+                "content": item.text,
+                "engagement_score": item.engagement.likes if item.engagement else 0,
+                "relevance_score": item.relevance,
+            })
+        for item in deduped_youtube:
+            findings.append({
+                "source": "youtube",
+                "url": item.url,
+                "title": item.title,
+                "author": item.channel_name,
+                "content": item.transcript_snippet[:500] if item.transcript_snippet else item.title,
+                "engagement_score": item.engagement.views if item.engagement and item.engagement.views else 0,
+                "relevance_score": item.relevance,
+            })
+        for item in deduped_web:
+            findings.append({
+                "source": "web",
+                "url": item.url,
+                "title": item.title,
+                "author": item.source_domain,
+                "content": item.snippet,
+                "engagement_score": 0,
+                "relevance_score": item.relevance,
+            })
+
+        counts = store_mod.store_findings(run_id, topic_id, findings)
+        store_mod.update_run(
+            run_id,
+            status="completed",
+            findings_new=counts["new"],
+            findings_updated=counts["updated"],
+        )
+        sys.stderr.write(
+            f"[store] Saved {counts['new']} new, {counts['updated']} updated findings\n"
+        )
+        sys.stderr.flush()
 
 
 def output_result(
