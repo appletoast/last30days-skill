@@ -1,11 +1,11 @@
 # /last30days v2.1
 
-**The AI world reinvents itself every month. This Claude Code skill keeps you current.** /last30days researches your topic across Reddit, X, YouTube, and the web from the last 30 days, finds what the community is actually upvoting, sharing, and saying on camera, and writes you a prompt that works today, not six months ago. Whether it's Ralph Wiggum loops, Suno music prompts, or the latest Midjourney techniques, you'll prompt like someone who's been paying attention.
+**The AI world reinvents itself every month. This skill keeps you current.** /last30days researches your topic across Reddit, X, YouTube, and the web from the last 30 days, finds what the community is actually upvoting, sharing, and saying on camera, and writes you a prompt that works today, not six months ago. Whether it's Seedance 2.0 access, Suno music prompts, or the latest Nano Banana Pro techniques, you'll prompt like someone who's been paying attention.
 
-**New in V2.1 — three headline features:**
+**New in V2.1  - three headline features:**
 
-1. **Open-class skill with watchlists.** Add any topic to a watchlist — your competitors, your partners, your board members, an emerging technology — and /last30days automatically re-researches it on a schedule. Set it once, get a briefing every 30 days (or every week). This is the skill that runs while you sleep.
-2. **YouTube transcripts as a 4th source.** When yt-dlp is installed, /last30days automatically searches YouTube, grabs view counts, and extracts auto-generated transcripts from the top videos. A 20-minute review contains 10x the signal of a tweet — now the skill reads it. Inspired by [@steipete](https://x.com/steipete)'s yt-dlp + [summarize](https://github.com/steipete/summarize) toolchain.
+1. **Open-class skill with watchlists.** Add any topic to a watchlist  - your competitors, your partners, your board members, an emerging technology  - and /last30days automatically re-researches it on a schedule. Set it once, get a briefing every 30 days (or every week). This is the skill that runs while you sleep.
+2. **YouTube transcripts as a 4th source.** When yt-dlp is installed, /last30days automatically searches YouTube, grabs view counts, and extracts auto-generated transcripts from the top videos. A 20-minute review contains 10x the signal of a single post - now the skill reads it. Inspired by [@steipete](https://x.com/steipete)'s yt-dlp + [summarize](https://github.com/steipete/summarize) toolchain.
 3. **Works in OpenAI Codex CLI.** Same skill, same engine. Install to `~/.agents/skills/last30days` and invoke with `$last30days`. Claude Code and Codex users get the same research.
 
 **New in V2:** Dramatically better search results. Smarter query construction finds posts that V1 missed entirely, and a new two-phase search automatically discovers key @handles and subreddits from initial results, then drills deeper. Free X search (no xAI key needed), `--days=N` for flexible lookback, and automatic model fallback. [Full changelog below.](#whats-new-in-v2)
@@ -26,14 +26,14 @@ git clone https://github.com/mvanhorn/last30days-skill.git ~/.claude/skills/last
 mkdir -p ~/.config/last30days
 cat > ~/.config/last30days/.env << 'EOF'
 OPENAI_API_KEY=sk-...
-XAI_API_KEY=xai-...       # optional — cookie auth is default for X search
+XAI_API_KEY=xai-...       # optional  - cookie auth is default for X search
 EOF
 chmod 600 ~/.config/last30days/.env
 ```
 
 ### X Search Authentication
 
-X search reads your existing browser cookies — no API keys or login commands needed.
+X search reads your existing browser cookies  - no API keys or login commands needed.
 
 **Safari (recommended on Mac):** Just be logged into x.com. No setup needed.
 
@@ -64,7 +64,7 @@ git clone https://github.com/mvanhorn/last30days-skill.git ~/.agents/skills/last
 
 Same SKILL.md, same Python engine, same scripts. The `agents/openai.yaml` provides Codex-specific discovery metadata. Invoke with `$last30days` or through the `/skills` menu.
 
-### Open Variant (Watchlist + Briefings) — Recommended
+### Open Variant (Watchlist + Briefings)  - Recommended
 
 The killer use case: **set up research that runs itself.** Add your competitors, partners, board members, or any topic to a watchlist. /last30days re-researches them on a daily or weekly schedule and accumulates findings in a local database. Ask for a briefing anytime.
 
@@ -86,16 +86,16 @@ cp variants/open/SKILL.md ~/.claude/skills/last30days/SKILL.md
 
 The open variant adds four modes on top of one-shot research:
 
-- **Watchlist** — Track topics over time with `watch add "topic"`, run on a schedule
-- **Briefings** — Daily/weekly digests synthesized from accumulated findings
-- **History** — Query and search your research database with full-text search
-- **Native web search** — Built-in web search backends (Parallel AI, Brave, OpenRouter) run alongside Reddit/X/YouTube
+- **Watchlist**  - Track topics over time with `watch add "topic"`, run on a schedule
+- **Briefings**  - Daily/weekly digests synthesized from accumulated findings
+- **History**  - Query and search your research database with full-text search
+- **Native web search**  - Built-in web search backends (Parallel AI, Brave, OpenRouter) run alongside Reddit/X/YouTube
 
 Both variants use the same Python engine and scripts directory. The open variant adds command routing (`watch`, `briefing`, `history`) and references mode-specific instruction files.
 
 **Optional web search API keys** (add to `~/.config/last30days/.env`):
 ```bash
-PARALLEL_API_KEY=...    # Parallel AI (preferred — LLM-optimized results)
+PARALLEL_API_KEY=...    # Parallel AI (preferred  - LLM-optimized results)
 BRAVE_API_KEY=...       # Brave Search (free tier: 2,000 queries/month)
 OPENROUTER_API_KEY=...  # OpenRouter/Perplexity Sonar Pro
 ```
@@ -135,18 +135,18 @@ Examples:
 **Query:** `/last30days nano banana pro prompting`
 
 **Research Output:**
-> JSON prompting is the dominant technique — The X community overwhelmingly uses structured JSON prompts rather than plain text. Creators like @Xmira_belle, @Cicily_aura, @RubenSalvo_, and @mahivisuals all share prompts in JSON format with nested objects for metadata, subject descriptions, lighting, camera specs, and scene composition. @realdigitaldao made a static ad "in less than 5 min" using a simple JSON prompt.
+> JSON prompting is the dominant technique  - The X community overwhelmingly uses structured JSON prompts rather than plain text. Creators like @Xmira_belle, @Cicily_aura, @RubenSalvo_, and @mahivisuals all share prompts in JSON format with nested objects for metadata, subject descriptions, lighting, camera specs, and scene composition. @realdigitaldao made a static ad "in less than 5 min" using a simple JSON prompt.
 >
-> Prompt adherence is Nano Banana Pro's killer advantage — JSON prompts hit 92% precision for color accuracy, lighting ratios, and composition vs ~68% for natural language prompts, per fofr.ai. @artingent directly compared it to GPT Image 1.5 and noted Nano Banana Pro has higher prompt adherence — "GPT image 1.5 ignored the Top Down instruction."
+> Prompt adherence is Nano Banana Pro's killer advantage  - JSON prompts hit 92% precision for color accuracy, lighting ratios, and composition vs ~68% for natural language prompts, per fofr.ai. @artingent directly compared it to GPT Image 1.5 and noted Nano Banana Pro has higher prompt adherence  - "GPT image 1.5 ignored the Top Down instruction."
 >
-> Stop writing "tag soup" — act like a Creative Director — The biggest shift is away from comma-separated keyword lists toward natural language descriptions with clear structure. The ICS Framework (Image type, Content, Style) and the 5-element formula (subject, composition, action, setting, style) are the two dominant approaches, per r/nanobanana2pro.
+> Stop writing "tag soup"  - act like a Creative Director  - The biggest shift is away from comma-separated keyword lists toward natural language descriptions with clear structure. The ICS Framework (Image type, Content, Style) and the 5-element formula (subject, composition, action, setting, style) are the two dominant approaches, per r/nanobanana2pro.
 
 **Key patterns discovered:**
-1. JSON > plain text — Structure prompts as JSON objects with keys for subject, composition, lighting, camera, style — per @Xmira_belle, @Cicily_aura
-2. The 5-element formula — Subject + Composition + Action + Setting + Style — per r/nanobanana2pro
-3. Separate subjects into distinct objects — Multi-character scenes need each person in their own JSON block to prevent "concept bleeding" — per fofr.ai
-4. Use camera/lens metadata — Aperture, focal length, ISO, film stock as JSON keys for hidden photorealism control
-5. 14 reference images max — Feed up to 14 reference images for brand/character consistency — per Google DeepMind
+1. JSON > plain text  - Structure prompts as JSON objects with keys for subject, composition, lighting, camera, style  - per @Xmira_belle, @Cicily_aura
+2. The 5-element formula  - Subject + Composition + Action + Setting + Style  - per r/nanobanana2pro
+3. Separate subjects into distinct objects  - Multi-character scenes need each person in their own JSON block to prevent "concept bleeding"  - per fofr.ai
+4. Use camera/lens metadata  - Aperture, focal length, ISO, film stock as JSON keys for hidden photorealism control
+5. 14 reference images max  - Feed up to 14 reference images for brand/character consistency  - per Google DeepMind
 
 **Research Stats:** 8 Reddit threads (455 upvotes) + 31 X posts (183 likes, 68 reposts) from r/nanobanana2pro, r/promptingmagic, @Xmira_belle (106 likes), @Cicily_aura (45 likes)
 
@@ -196,7 +196,7 @@ Examples:
   <img src="assets/swimmom-mockup.jpeg" width="400" alt="SwimMom iOS app mockup"/>
 </p>
 
-This example shows /last30days learning that **JSON prompts dominate** the Nano Banana Pro community (not plain text), then applying that format to generate an iOS mockup in one shot. The research came from real X creators and Reddit threads — techniques you wouldn't find in official docs.
+This example shows /last30days learning that **JSON prompts dominate** the Nano Banana Pro community (not plain text), then applying that format to generate an iOS mockup in one shot. The research came from real X creators and Reddit threads  - techniques you wouldn't find in official docs.
 
 ---
 
@@ -205,29 +205,29 @@ This example shows /last30days learning that **JSON prompts dominate** the Nano 
 **Query:** `/last30days kanye west`
 
 **Research Output:**
-> **The Apology Arc** — On January 26, Ye published a full-page letter in The Wall Street Journal titled "To Those I've Hurt," apologizing for antisemitic comments and attributing it to a four-month manic episode, an undiagnosed brain injury from his 2002 car crash, and bipolar type-1 disorder. The ADL called it "long overdue" but said it "doesn't automatically undo his long history of antisemitism." Then on February 9, he posted "I love Hitler now what" — blowing up the goodwill almost immediately, per The Mirror. Fans on X are split on whether the apology was genuine or just pre-album PR, per @dekreationz's viral post (8.6K likes).
+> **The Apology Arc**  - On January 26, Ye published a full-page letter in The Wall Street Journal titled "To Those I've Hurt," apologizing for antisemitic comments and attributing it to a four-month manic episode, an undiagnosed brain injury from his 2002 car crash, and bipolar type-1 disorder. The ADL called it "long overdue" but said it "doesn't automatically undo his long history of antisemitism." Then on February 9, he posted "I love Hitler now what"  - blowing up the goodwill almost immediately, per The Mirror. Fans on X are split on whether the apology was genuine or just pre-album PR, per @dekreationz's viral post (8.6K likes).
 >
-> **BULLY Album** — Twelfth studio album set for March 20 via YZY and Gamma. 13 tracks with Peso Pluma, Playboi Carti, and Ty Dolla Sign features. Sonically it leans toward 808s/MBDTF territory — more singing than rapping. Ye has reportedly removed all deepfaked/AI-generated vocals from the final version, per Rolling Stone.
+> **BULLY Album**  - Twelfth studio album set for March 20 via YZY and Gamma. 13 tracks with Peso Pluma, Playboi Carti, and Ty Dolla Sign features. Sonically it leans toward 808s/MBDTF territory  - more singing than rapping. Ye has reportedly removed all deepfaked/AI-generated vocals from the final version, per Rolling Stone.
 >
-> **Bianca Censori Breaks Silence** — In a Vanity Fair tell-all, Bianca spoke publicly for the first time about their marriage, saying "This year was a lot like doing CPR for months." She confirmed her outfits are her own choice and revealed their relationship started when she was head of architecture at Yeezy, per TMZ.
+> **Bianca Censori Breaks Silence**  - In a Vanity Fair tell-all, Bianca spoke publicly for the first time about their marriage, saying "This year was a lot like doing CPR for months." She confirmed her outfits are her own choice and revealed their relationship started when she was head of architecture at Yeezy, per TMZ.
 >
-> **Kim/Instagram Drama** — A screenshot of Ye allegedly commenting on Kim's Complex magazine post went mega-viral on X. Multiple Grok fact-checks confirmed it's likely fabricated, but @dekreationz's post racked up nearly 9K likes regardless — showing the Ye/Kim narrative still drives massive engagement.
+> **Kim/Instagram Drama**  - A screenshot of Ye allegedly commenting on Kim's Complex magazine post went mega-viral on X. Multiple Grok fact-checks confirmed it's likely fabricated, but @dekreationz's post racked up nearly 9K likes regardless  - showing the Ye/Kim narrative still drives massive engagement.
 
 **Key patterns from the research:**
-1. Apology-then-relapse cycle — The WSJ letter was immediately undercut by new inflammatory posts, making sincerity the dominant debate, per Washington Post
-2. Album as PR vehicle — Skeptics across X tie the apology's timing directly to BULLY's March 20 release, per @trustGod_007
-3. Bianca as her own story — Transitioning from "Kanye's wife" to individual public figure through Vanity Fair
-4. Fake screenshot virality — Fabricated Ye content still goes massively viral before debunking, per @dekreationz
+1. Apology-then-relapse cycle  - The WSJ letter was immediately undercut by new inflammatory posts, making sincerity the dominant debate, per Washington Post
+2. Album as PR vehicle  - Skeptics across X tie the apology's timing directly to BULLY's March 20 release, per @trustGod_007
+3. Bianca as her own story  - Transitioning from "Kanye's wife" to individual public figure through Vanity Fair
+4. Fake screenshot virality  - Fabricated Ye content still goes massively viral before debunking, per @dekreationz
 
 **Research Stats:** 3 Reddit threads (193 upvotes, 192 comments) + 33 X posts (9,295 likes, 279 reposts) from r/Kanye, r/hiphopheads, @dekreationz (8,684 likes), @trustGod_007
 
 **Follow-up suggestions offered:**
 > I'm now an expert on Kanye West. Some things I can help with:
-> - What's the real story behind the apology letter — genuine accountability or pre-album PR?
+> - What's the real story behind the apology letter  - genuine accountability or pre-album PR?
 > - Deep dive on BULLY: tracklist, Gamma deal, and removal of AI vocals
-> - The Bianca Censori Vanity Fair interview — what she actually said vs. the tabloid headlines
+> - The Bianca Censori Vanity Fair interview  - what she actually said vs. the tabloid headlines
 
-This example shows /last30days as a **current events research tool** — no prompting, no target tool, just "what's happening with Kanye?" and you get a synthesized expert briefing pulled from 33 X posts and 3 Reddit threads with real engagement data.
+This example shows /last30days as a **current events research tool**  - no prompting, no target tool, just "what's happening with Kanye?" and you get a synthesized expert briefing pulled from 33 X posts and 3 Reddit threads with real engagement data.
 
 ---
 
@@ -236,18 +236,18 @@ This example shows /last30days as a **current events research tool** — no prom
 **Query:** `/last30days higgsfield motion vibe motion prompting`
 
 **Research Output:**
-> **Vibe Motion just launched (Feb 5-6, 2026) and it's blowing up** — Higgsfield dropped a Claude-powered motion design tool that generates editable motion graphics from plain-English prompts. It's the first AI video tool with actual reasoning, per @Hartdrawss, and @rezkhere called it out as something "no other AI can do." Linus Ekenstam said it "broke his brain" — work that took hours in After Effects now takes minutes.
+> **Vibe Motion just launched (Feb 5-6, 2026) and it's blowing up**  - Higgsfield dropped a Claude-powered motion design tool that generates editable motion graphics from plain-English prompts. It's the first AI video tool with actual reasoning, per @Hartdrawss, and @rezkhere called it out as something "no other AI can do." Linus Ekenstam said it "broke his brain"  - work that took hours in After Effects now takes minutes.
 >
-> **It generates code, not pixels** — Unlike other AI video tools, Vibe Motion produces actual animation code (via Remotion under the hood), not hallucinated video. Text never breaks, edits stay consistent, and you get a controllable, editable asset, per @Totinhiiio.
+> **It generates code, not pixels**  - Unlike other AI video tools, Vibe Motion produces actual animation code (via Remotion under the hood), not hallucinated video. Text never breaks, edits stay consistent, and you get a controllable, editable asset, per @Totinhiiio.
 >
-> **Honest reviews: promising but not polished yet** — Chase Jarvis found results "okay" but noted 5+ minute render times, credit burn on iteration (8-60 credits per gen, $9 plan = ~150 credits), and that basic results are achievable faster with Canva. His verdict: "not quite ready for prime time" but the underlying tech shows significant potential.
+> **Honest reviews: promising but not polished yet**  - Chase Jarvis found results "okay" but noted 5+ minute render times, credit burn on iteration (8-60 credits per gen, $9 plan = ~150 credits), and that basic results are achievable faster with Canva. His verdict: "not quite ready for prime time" but the underlying tech shows significant potential.
 
 **Key patterns discovered:**
-1. Describe structure, not effects — Focus on timing, hierarchy, typography, and flow rather than expressive visual storytelling, per Higgsfield's official guide
-2. Upload your actual assets first — Brand logos, product images, PDFs give the AI context to build around YOUR files, not generic placeholders
-3. Use presets as starting points — Select a format (Infographics, Text Animation, Posters) before writing your prompt
-4. Keep prompts conversational and direct — Short commands > long descriptions. "Create a kinetic typography intro" beats a paragraph of specs, per Segmind
-5. Budget for iteration — Each generation burns credits, so get your prompt right before hitting generate, per Chase Jarvis
+1. Describe structure, not effects  - Focus on timing, hierarchy, typography, and flow rather than expressive visual storytelling, per Higgsfield's official guide
+2. Upload your actual assets first  - Brand logos, product images, PDFs give the AI context to build around YOUR files, not generic placeholders
+3. Use presets as starting points  - Select a format (Infographics, Text Animation, Posters) before writing your prompt
+4. Keep prompts conversational and direct  - Short commands > long descriptions. "Create a kinetic typography intro" beats a paragraph of specs, per Segmind
+5. Budget for iteration  - Each generation burns credits, so get your prompt right before hitting generate, per Chase Jarvis
 
 **Research Stats:** 10 Reddit threads + 30 X posts from @rezkhere, @Hartdrawss, @Totinhiiio + 14 web pages (Higgsfield blog, Chase Jarvis, SiliconANGLE, Segmind)
 
@@ -257,7 +257,7 @@ This example shows /last30days as a **current events research tool** — no prom
 > - A kinetic typography intro/bumper for a YouTube series
 > - A logo reveal animation with particle effects and custom brand colors
 
-This example shows /last30days researching **a tool that launched 2 days ago**. No blog roundups existed yet — the research came from X creators and Reddit threads reacting in real-time. You get prompting advice from the people actually using it, not SEO articles written after the fact.
+This example shows /last30days researching **a tool that launched 2 days ago**. No blog roundups existed yet  - the research came from X creators and Reddit threads reacting in real-time. You get prompting advice from the people actually using it, not SEO articles written after the fact.
 
 ---
 
@@ -890,21 +890,21 @@ If your OpenAI org doesn't have access to a model (e.g., unverified for gpt-4.1)
 
 V2 finds significantly more content than V1. Two major improvements:
 
-**Smarter query construction** - V1 sent overly specific queries to X search (literal keyword AND matching), causing 0 results on topics that were actively trending. V2 aggressively strips research/meta words ("best", "prompt", "techniques", "tips") and question prefixes ("what are people saying about") to extract just the core topic. Example: `"vibe motion best prompt techniques"` now searches for `"vibe motion"` instead of `"vibe motion prompt techniques"` — going from 0 posts to 12+. Automatically retries with fewer keywords if the first attempt returns nothing.
+**Smarter query construction** - V1 sent overly specific queries to X search (literal keyword AND matching), causing 0 results on topics that were actively trending. V2 aggressively strips research/meta words ("best", "prompt", "techniques", "tips") and question prefixes ("what are people saying about") to extract just the core topic. Example: `"vibe motion best prompt techniques"` now searches for `"vibe motion"` instead of `"vibe motion prompt techniques"`  - going from 0 posts to 12+. Automatically retries with fewer keywords if the first attempt returns nothing.
 
-**Smart supplemental search (Phase 2)** - After the initial broad search, extracts key @handles and subreddits from the results, then runs targeted follow-up searches to find content that keyword search alone misses. Example: researching "Open Claw" automatically discovers @openclaw, @steipete and drills into their posts. For Reddit, it hits the free `.json` search endpoint scoped to discovered subreddits — no extra API keys needed.
+**Smart supplemental search (Phase 2)** - After the initial broad search, extracts key @handles and subreddits from the results, then runs targeted follow-up searches to find content that keyword search alone misses. Example: researching "Open Claw" automatically discovers @openclaw, @steipete and drills into their posts. For Reddit, it hits the free `.json` search endpoint scoped to discovered subreddits  - no extra API keys needed.
 
 **Reddit JSON enrichment** - Fetches real upvote and comment counts from Reddit's free API for every thread, giving you actual engagement signals instead of estimates.
 
 ### Open-class skill with watchlists (v2.1)
 
-**The biggest feature in v2.1 isn't a new source — it's what happens when you stop thinking of /last30days as a one-shot tool.** The open variant adds a watchlist, briefings, and history. Add `"Competitor X"` to your watchlist, set it to weekly, and every Monday morning you have a research briefing waiting — what they shipped, what people said about it, what Reddit and X are discussing. Do the same for your partners, your board members, an emerging technology you're tracking. The research accumulates in a local SQLite database, and you can query it anytime with natural language.
+**The biggest feature in v2.1 isn't a new source  - it's what happens when you stop thinking of /last30days as a one-shot tool.** The open variant adds a watchlist, briefings, and history. Add `"Competitor X"` to your watchlist, set it to weekly, and every Monday morning you have a research briefing waiting  - what they shipped, what people said about it, what Reddit and X are discussing. Do the same for your partners, your board members, an emerging technology you're tracking. The research accumulates in a local SQLite database, and you can query it anytime with natural language.
 
 This is the use case that changes how you work: **research that runs while you sleep.**
 
 ### YouTube search with transcripts (v2.1)
 
-**YouTube is now a 4th research source.** When yt-dlp is installed (`brew install yt-dlp`), /last30days automatically searches YouTube for your topic, fetches view counts and engagement data, and extracts auto-generated transcripts from the top videos. Transcripts give the synthesis engine actual content to work with — not just titles.
+**YouTube is now a 4th research source.** When yt-dlp is installed (`brew install yt-dlp`), /last30days automatically searches YouTube for your topic, fetches view counts and engagement data, and extracts auto-generated transcripts from the top videos. Transcripts give the synthesis engine actual content to work with  - not just titles.
 
 YouTube items go through the same scoring pipeline (relevance + recency + engagement) and are deduped, scored, and rendered alongside Reddit and X results. Views dominate YouTube's engagement formula since they're the primary discovery signal.
 
@@ -942,4 +942,4 @@ Thanks to the contributors who helped shape V2:
 
 *30 days of research. 30 seconds of work. Four sources. Zero stale prompts.*
 
-*Set it once. Get briefings forever. Reddit. X. YouTube. Web. — All synthesized into expert answers and copy-paste prompts.*
+*Set it once. Get briefings forever. Reddit. X. YouTube. Web.  - All synthesized into expert answers and copy-paste prompts.*
