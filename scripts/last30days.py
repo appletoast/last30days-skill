@@ -303,6 +303,71 @@ def _search_youtube(
     return youtube_items, youtube_error
 
 
+def _search_single_backend(
+    name: str,
+    api_key: str,
+    topic: str,
+    from_date: str,
+    to_date: str,
+    depth: str,
+) -> tuple:
+    """Run a single web search backend.
+
+    Returns:
+        Tuple of (results_list, error_string_or_None)
+    """
+    from lib import brave_search, parallel_search, openrouter_search, tavily_search, perplexity_search
+
+    dispatch = {
+        "tavily": tavily_search.search_web,
+        "perplexity": perplexity_search.search_web,
+        "parallel": parallel_search.search_web,
+        "brave": brave_search.search_web,
+        "openrouter": openrouter_search.search_web,
+    }
+
+    fn = dispatch.get(name)
+    if not fn:
+        return [], f"Unknown web search backend: {name}"
+
+    try:
+        results = fn(topic, from_date, to_date, api_key, depth=depth)
+        return results, None
+    except Exception as e:
+        return [], f"{type(e).__name__}: {e}"
+
+
+def _dedupe_web_results(results: list) -> list:
+    """Deduplicate web results by normalized URL, keeping higher relevance score."""
+    from urllib.parse import urlparse, urlunparse
+
+    seen = {}  # normalized_url -> item
+    for item in results:
+        raw_url = item.get("url", "")
+        if not raw_url:
+            # No URL — keep it (can't dedup)
+            seen[id(item)] = item
+            continue
+        # Normalize: lowercase host, strip trailing slash, drop fragment
+        parsed = urlparse(raw_url)
+        normalized = urlunparse((
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            parsed.path.rstrip("/"),
+            parsed.params,
+            parsed.query,
+            "",  # drop fragment
+        ))
+        if normalized in seen:
+            existing = seen[normalized]
+            # Keep the one with higher relevance_score (if present)
+            if item.get("relevance_score", 0) > existing.get("relevance_score", 0):
+                seen[normalized] = item
+        else:
+            seen[normalized] = item
+    return list(seen.values())
+
+
 def _search_web(
     topic: str,
     config: dict,
@@ -310,49 +375,85 @@ def _search_web(
     to_date: str,
     depth: str,
 ) -> tuple:
-    """Search the web via native API backend (runs in thread).
+    """Search the web via all configured API backends in parallel.
 
-    Uses the best available backend: Tavily > Perplexity > Parallel AI > Brave > OpenRouter.
+    Single backend: calls it directly (no overhead).
+    Multiple backends: runs all in parallel with ThreadPoolExecutor,
+    merges and deduplicates results.
 
     Returns:
         Tuple of (web_items, web_error)
         web_items are raw dicts ready for websearch.normalize_websearch_items()
     """
-    from lib import brave_search, parallel_search, openrouter_search, tavily_search, perplexity_search
-
-    backend = env.get_web_search_source(config)
-    if not backend:
+    backends = env.get_available_web_search_backends(config)
+    if not backends:
         return [], "No web search API keys configured"
 
-    web_error = None
-    raw_results = []
+    all_results = []
+    errors = []
 
-    try:
-        if backend == "tavily":
-            raw_results = tavily_search.search_web(
-                topic, from_date, to_date, config["TAVILY_API_KEY"], depth=depth,
-            )
-        elif backend == "perplexity":
-            raw_results = perplexity_search.search_web(
-                topic, from_date, to_date, config["PERPLEXITY_API_KEY"], depth=depth,
-            )
-        elif backend == "parallel":
-            raw_results = parallel_search.search_web(
-                topic, from_date, to_date, config["PARALLEL_API_KEY"], depth=depth,
-            )
-        elif backend == "brave":
-            raw_results = brave_search.search_web(
-                topic, from_date, to_date, config["BRAVE_API_KEY"], depth=depth,
-            )
-        elif backend == "openrouter":
-            raw_results = openrouter_search.search_web(
-                topic, from_date, to_date, config["OPENROUTER_API_KEY"], depth=depth,
-            )
-    except Exception as e:
-        return [], f"{type(e).__name__}: {e}"
+    if len(backends) == 1:
+        # Single backend — call directly, no thread overhead
+        name, api_key = backends[0]
+        results, error = _search_single_backend(name, api_key, topic, from_date, to_date, depth)
+        if error:
+            return [], error
+        all_results = results
+        sys.stderr.write(f"[web] {name}: {len(results)} results\n")
+        sys.stderr.flush()
+    else:
+        # Multiple backends — run in parallel
+        backend_names = [b[0] for b in backends]
+        sys.stderr.write(f"[web] Searching {len(backends)} backends: {', '.join(backend_names)}\n")
+        sys.stderr.flush()
+
+        with ThreadPoolExecutor(max_workers=len(backends)) as executor:
+            futures = {
+                executor.submit(
+                    _search_single_backend, name, api_key, topic, from_date, to_date, depth
+                ): name
+                for name, api_key in backends
+            }
+
+            completed_names = set()
+            try:
+                for future in as_completed(futures, timeout=30):
+                    name = futures[future]
+                    completed_names.add(name)
+                    try:
+                        results, error = future.result(timeout=5)
+                        if error:
+                            errors.append(f"{name}: {error}")
+                            sys.stderr.write(f"[web] {name}: error — {error}\n")
+                        else:
+                            sys.stderr.write(f"[web] {name}: {len(results)} results\n")
+                            all_results.extend(results)
+                    except TimeoutError:
+                        errors.append(f"{name}: timed out")
+                        sys.stderr.write(f"[web] {name}: timed out\n")
+                    except Exception as e:
+                        errors.append(f"{name}: {type(e).__name__}: {e}")
+                        sys.stderr.write(f"[web] {name}: {type(e).__name__}: {e}\n")
+            except TimeoutError:
+                # 30s wall clock expired — log which backends didn't finish
+                for future, name in futures.items():
+                    if name not in completed_names:
+                        errors.append(f"{name}: timed out (30s)")
+                        sys.stderr.write(f"[web] {name}: timed out (30s)\n")
+            sys.stderr.flush()
+
+        # Deduplicate across backends
+        all_results = _dedupe_web_results(all_results)
+
+    # If all backends failed, report combined error
+    if not all_results and errors:
+        return [], "; ".join(errors)
+
+    # Partial failure: log but continue with what we have
+    web_error = "; ".join(errors) if errors else None
 
     # Add IDs and date_confidence for websearch.normalize_websearch_items()
-    for i, item in enumerate(raw_results):
+    for i, item in enumerate(all_results):
         item.setdefault("id", f"W{i+1}")
         if item.get("date") and not item.get("date_confidence"):
             item["date_confidence"] = "med"
@@ -360,7 +461,7 @@ def _search_web(
             item["date_confidence"] = "low"
         item.setdefault("why_relevant", "")
 
-    return raw_results, web_error
+    return all_results, web_error
 
 
 def _run_supplemental(
@@ -535,14 +636,16 @@ def run_research(
 
     # Determine web search mode
     do_web = sources in ("all", "web", "reddit-web", "x-web")
-    web_backend = env.get_web_search_source(config) if do_web else None
+    web_backends = env.get_available_web_search_backends(config) if do_web else []
+    web_backend = web_backends[0][0] if web_backends else None  # for compatibility
     web_needed = do_web and not web_backend
 
     # Web-only mode
     if sources == "web":
         if web_backend:
             # Native web search available — run it
-            sys.stderr.write(f"[web] Searching via {web_backend}\n")
+            backend_names = [b[0] for b in web_backends]
+            sys.stderr.write(f"[web] Searching via {', '.join(backend_names)}\n")
             sys.stderr.flush()
             try:
                 web_items, web_error = _search_web(topic, config, from_date, to_date, depth)
@@ -612,7 +715,8 @@ def run_research(
             )
 
         if web_backend:
-            sys.stderr.write(f"[web] Searching via {web_backend}\n")
+            backend_names = [b[0] for b in web_backends]
+            sys.stderr.write(f"[web] Searching via {', '.join(backend_names)}\n")
             sys.stderr.flush()
             web_future = executor.submit(
                 _search_web, topic, config, from_date, to_date, depth
@@ -878,6 +982,7 @@ def main():
     # --diagnose: show source availability and exit
     if args.diagnose:
         web_source = env.get_web_search_source(config)
+        all_web_backends = env.get_available_web_search_backends(config)
         diag = {
             "openai": bool(config.get("OPENAI_API_KEY")),
             "xai": bool(config.get("XAI_API_KEY")),
@@ -887,6 +992,7 @@ def main():
             "bird_username": x_source_status.get("bird_username"),
             "youtube": has_ytdlp,
             "web_search_backend": web_source,
+            "web_search_backends": [b[0] for b in all_web_backends],
             "tavily": bool(config.get("TAVILY_API_KEY")),
             "perplexity": bool(config.get("PERPLEXITY_API_KEY")),
             "parallel_ai": bool(config.get("PARALLEL_API_KEY")),

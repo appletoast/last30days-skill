@@ -125,6 +125,27 @@ def get_web_search_source(config: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def get_available_web_search_backends(config: Dict[str, Any]) -> list:
+    """Return all configured web search backends as (name, api_key) tuples.
+
+    Checks every supported backend and returns all that have API keys set.
+    Order matches priority: Tavily > Perplexity > Parallel AI > Brave > OpenRouter.
+    """
+    backends = []
+    backend_keys = [
+        ('tavily', 'TAVILY_API_KEY'),
+        ('perplexity', 'PERPLEXITY_API_KEY'),
+        ('parallel', 'PARALLEL_API_KEY'),
+        ('brave', 'BRAVE_API_KEY'),
+        ('openrouter', 'OPENROUTER_API_KEY'),
+    ]
+    for name, key_name in backend_keys:
+        api_key = config.get(key_name)
+        if api_key:
+            backends.append((name, api_key))
+    return backends
+
+
 def get_missing_keys(config: Dict[str, Any]) -> str:
     """Determine which sources are missing (accounting for Bird).
 
