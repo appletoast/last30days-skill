@@ -47,6 +47,8 @@ def search_web(
     """
     max_results_hint = {"quick": 8, "default": 15, "deep": 25}.get(depth, 15)
     max_tokens = {"quick": 1024, "default": 2048, "deep": 4096}.get(depth, 2048)
+    # Sonar is LLM-based — needs more time than structured search APIs
+    http_timeout = {"quick": 30, "default": 45, "deep": 60}.get(depth, 45)
 
     prompt = (
         f"Find up to {max_results_hint} recent blog posts, news articles, tutorials, "
@@ -71,7 +73,7 @@ def search_web(
         headers={
             "Authorization": f"Bearer {api_key}",
         },
-        timeout=30,
+        timeout=http_timeout,
     )
 
     return _normalize_results(response)

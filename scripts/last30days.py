@@ -417,7 +417,7 @@ def _search_web(
 
             completed_names = set()
             try:
-                for future in as_completed(futures, timeout=30):
+                for future in as_completed(futures, timeout=60):
                     name = futures[future]
                     completed_names.add(name)
                     try:
@@ -435,11 +435,11 @@ def _search_web(
                         errors.append(f"{name}: {type(e).__name__}: {e}")
                         sys.stderr.write(f"[web] {name}: {type(e).__name__}: {e}\n")
             except TimeoutError:
-                # 30s wall clock expired — log which backends didn't finish
+                # 60s wall clock expired — log which backends didn't finish
                 for future, name in futures.items():
                     if name not in completed_names:
-                        errors.append(f"{name}: timed out (30s)")
-                        sys.stderr.write(f"[web] {name}: timed out (30s)\n")
+                        errors.append(f"{name}: timed out (60s)")
+                        sys.stderr.write(f"[web] {name}: timed out (60s)\n")
             sys.stderr.flush()
 
         # Deduplicate across backends
