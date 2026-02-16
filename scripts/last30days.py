@@ -312,13 +312,13 @@ def _search_web(
 ) -> tuple:
     """Search the web via native API backend (runs in thread).
 
-    Uses the best available backend: Parallel AI > Brave > OpenRouter.
+    Uses the best available backend: Tavily > Perplexity > Parallel AI > Brave > OpenRouter.
 
     Returns:
         Tuple of (web_items, web_error)
         web_items are raw dicts ready for websearch.normalize_websearch_items()
     """
-    from lib import brave_search, parallel_search, openrouter_search
+    from lib import brave_search, parallel_search, openrouter_search, tavily_search, perplexity_search
 
     backend = env.get_web_search_source(config)
     if not backend:
@@ -328,7 +328,15 @@ def _search_web(
     raw_results = []
 
     try:
-        if backend == "parallel":
+        if backend == "tavily":
+            raw_results = tavily_search.search_web(
+                topic, from_date, to_date, config["TAVILY_API_KEY"], depth=depth,
+            )
+        elif backend == "perplexity":
+            raw_results = perplexity_search.search_web(
+                topic, from_date, to_date, config["PERPLEXITY_API_KEY"], depth=depth,
+            )
+        elif backend == "parallel":
             raw_results = parallel_search.search_web(
                 topic, from_date, to_date, config["PARALLEL_API_KEY"], depth=depth,
             )
@@ -879,6 +887,8 @@ def main():
             "bird_username": x_source_status.get("bird_username"),
             "youtube": has_ytdlp,
             "web_search_backend": web_source,
+            "tavily": bool(config.get("TAVILY_API_KEY")),
+            "perplexity": bool(config.get("PERPLEXITY_API_KEY")),
             "parallel_ai": bool(config.get("PARALLEL_API_KEY")),
             "brave": bool(config.get("BRAVE_API_KEY")),
             "openrouter": bool(config.get("OPENROUTER_API_KEY")),
