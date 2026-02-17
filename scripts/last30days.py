@@ -1199,7 +1199,9 @@ def main():
 
     # Show completion
     if sources == "web":
-        progress.show_web_only_complete()
+        progress.show_web_only_complete(
+            web_count=len(deduped_web), web_backend_counts=web_backend_counts,
+        )
     else:
         progress.show_complete(
             len(deduped_reddit), len(deduped_x), len(deduped_youtube),

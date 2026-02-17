@@ -318,15 +318,28 @@ class ProgressDisplay:
         if self.spinner:
             self.spinner.stop(f"{Colors.GREEN}Web{Colors.RESET} assistant will search the web")
 
-    def show_web_only_complete(self):
+    def show_web_only_complete(self, web_count: int = 0, web_backend_counts: dict = None):
         """Show completion for web-only mode."""
         elapsed = time.time() - self.start_time
+        web_detail = ""
+        if web_count and web_backend_counts and len(web_backend_counts) > 1:
+            breakdown = ", ".join(f"{k}: {v}" for k, v in web_backend_counts.items())
+            web_detail = f" ({breakdown})"
+
         if IS_TTY:
-            sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Ready for web search{Colors.RESET} ")
-            sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
-            sys.stderr.write(f"  {Colors.GREEN}Web:{Colors.RESET} assistant will search blogs, docs & news\n\n")
+            if web_count:
+                sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Web search complete{Colors.RESET} ")
+                sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
+                sys.stderr.write(f"  {Colors.GREEN}Web:{Colors.RESET} {web_count} pages{web_detail}\n\n")
+            else:
+                sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Ready for web search{Colors.RESET} ")
+                sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
+                sys.stderr.write(f"  {Colors.GREEN}Web:{Colors.RESET} assistant will search blogs, docs & news\n\n")
         else:
-            sys.stderr.write(f"✓ Ready for web search ({elapsed:.1f}s)\n")
+            if web_count:
+                sys.stderr.write(f"✓ Web search complete ({elapsed:.1f}s) - Web: {web_count} pages{web_detail}\n")
+            else:
+                sys.stderr.write(f"✓ Ready for web search ({elapsed:.1f}s)\n")
         sys.stderr.flush()
 
     def show_promo(self, missing: str = "both", diag: dict = None):
