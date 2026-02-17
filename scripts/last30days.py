@@ -38,9 +38,9 @@ _child_pids: set = set()
 _child_pids_lock = threading.Lock()
 
 TIMEOUT_PROFILES = {
-    "quick":   {"global": 90,  "future": 30, "reddit_future": 60,  "youtube_future": 60,  "http": 15, "enrich_per": 8,  "enrich_total": 30, "enrich_max_items": 10},
-    "default": {"global": 180, "future": 60, "reddit_future": 90,  "youtube_future": 90,  "http": 30, "enrich_per": 15, "enrich_total": 45, "enrich_max_items": 15},
-    "deep":    {"global": 300, "future": 90, "reddit_future": 120, "youtube_future": 120, "http": 30, "enrich_per": 15, "enrich_total": 60, "enrich_max_items": 25},
+    "quick":   {"global": 90,  "future": 30, "reddit_future": 60,  "youtube_future": 60,  "web_future": 35, "http": 15, "enrich_per": 8,  "enrich_total": 30, "enrich_max_items": 10},
+    "default": {"global": 180, "future": 60, "reddit_future": 90,  "youtube_future": 90,  "web_future": 65, "http": 30, "enrich_per": 15, "enrich_total": 45, "enrich_max_items": 15},
+    "deep":    {"global": 300, "future": 90, "reddit_future": 120, "youtube_future": 120, "web_future": 90, "http": 30, "enrich_per": 15, "enrich_total": 60, "enrich_max_items": 25},
 }
 
 
@@ -644,9 +644,6 @@ def run_research(
     if sources == "web":
         if web_backend:
             # Native web search available — run it
-            backend_names = [b[0] for b in web_backends]
-            sys.stderr.write(f"[web] Searching via {', '.join(backend_names)}\n")
-            sys.stderr.flush()
             try:
                 web_items, web_error = _search_web(topic, config, from_date, to_date, depth)
                 if web_error and progress:
@@ -715,9 +712,6 @@ def run_research(
             )
 
         if web_backend:
-            backend_names = [b[0] for b in web_backends]
-            sys.stderr.write(f"[web] Searching via {', '.join(backend_names)}\n")
-            sys.stderr.flush()
             web_future = executor.submit(
                 _search_web, topic, config, from_date, to_date, depth
             )
@@ -774,12 +768,13 @@ def run_research(
                 progress.end_youtube(len(youtube_items))
 
         if web_future:
+            web_timeout = timeouts.get("web_future", future_timeout)
             try:
-                web_items, web_error = web_future.result(timeout=future_timeout)
+                web_items, web_error = web_future.result(timeout=web_timeout)
                 if web_error and progress:
                     progress.show_error(f"Web error: {web_error}")
             except TimeoutError:
-                web_error = f"Web search timed out after {future_timeout}s"
+                web_error = f"Web search timed out after {web_timeout}s"
                 if progress:
                     progress.show_error(web_error)
             except Exception as e:
