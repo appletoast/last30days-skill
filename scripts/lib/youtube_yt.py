@@ -239,7 +239,6 @@ def fetch_transcript(video_id: str, temp_dir: str) -> Optional[str]:
         "--sub-lang", "en",
         "--sub-format", "vtt",
         "--skip-download",
-        "--no-warnings",
         "-o", f"{temp_dir}/%(id)s",
         f"https://www.youtube.com/watch?v={video_id}",
     ]
@@ -255,15 +254,17 @@ def fetch_transcript(video_id: str, temp_dir: str) -> Optional[str]:
             preexec_fn=preexec,
         )
         try:
-            proc.communicate(timeout=30)
+            stdout, stderr = proc.communicate(timeout=30)
         except subprocess.TimeoutExpired:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError, OSError):
                 proc.kill()
             proc.wait(timeout=5)
+            _log(f"Transcript timeout for {video_id}")
             return None
     except FileNotFoundError:
+        _log("yt-dlp not found")
         return None
 
     # yt-dlp may save as .en.vtt or .en-orig.vtt
@@ -274,11 +275,14 @@ def fetch_transcript(video_id: str, temp_dir: str) -> Optional[str]:
             vtt_path = p
             break
         else:
+            stderr_msg = stderr.strip() if stderr else "no stderr"
+            _log(f"No subtitle file for {video_id}: {stderr_msg}")
             return None
 
     try:
         raw = vtt_path.read_text(encoding="utf-8", errors="replace")
     except OSError:
+        _log(f"Error reading subtitle for {video_id}")
         return None
 
     transcript = _clean_vtt(raw)
