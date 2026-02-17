@@ -407,6 +407,8 @@ def _search_web(
         results, error = _search_single_backend(name, api_key, topic, from_date, to_date, depth)
         if error:
             return [], error
+        for item in results:
+            item["_backend"] = name
         all_results = results
         sys.stderr.write(f"[web] {name}: {len(results)} results\n")
         sys.stderr.flush()
@@ -436,6 +438,8 @@ def _search_web(
                             sys.stderr.write(f"[web] {name}: error — {error}\n")
                         else:
                             sys.stderr.write(f"[web] {name}: {len(results)} results\n")
+                            for item in results:
+                                item["_backend"] = name
                             all_results.extend(results)
                     except TimeoutError:
                         errors.append(f"{name}: timed out")
@@ -1117,6 +1121,12 @@ def main():
         timeouts=timeouts,
     )
 
+    # Count per-backend web results before normalization strips _backend tag
+    web_backend_counts = {}
+    for item in web_items:
+        backend = item.pop("_backend", "unknown")
+        web_backend_counts[backend] = web_backend_counts.get(backend, 0) + 1
+
     # Processing phase
     progress.start_processing()
 
@@ -1191,7 +1201,10 @@ def main():
     if sources == "web":
         progress.show_web_only_complete()
     else:
-        progress.show_complete(len(deduped_reddit), len(deduped_x), len(deduped_youtube))
+        progress.show_complete(
+            len(deduped_reddit), len(deduped_x), len(deduped_youtube),
+            web_count=len(deduped_web), web_backend_counts=web_backend_counts,
+        )
 
     # Build source info for status footer
     source_info = {}

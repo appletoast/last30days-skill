@@ -267,8 +267,15 @@ class ProgressDisplay:
         if self.spinner:
             self.spinner.stop()
 
-    def show_complete(self, reddit_count: int, x_count: int, youtube_count: int = 0):
+    def show_complete(self, reddit_count: int, x_count: int, youtube_count: int = 0,
+                      web_count: int = 0, web_backend_counts: dict = None):
         elapsed = time.time() - self.start_time
+        # Build web breakdown string if multiple backends contributed
+        web_detail = ""
+        if web_count and web_backend_counts and len(web_backend_counts) > 1:
+            breakdown = ", ".join(f"{k}: {v}" for k, v in web_backend_counts.items())
+            web_detail = f" ({breakdown})"
+
         if IS_TTY:
             sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Research complete{Colors.RESET} ")
             sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
@@ -276,11 +283,15 @@ class ProgressDisplay:
             sys.stderr.write(f"{Colors.CYAN}X:{Colors.RESET} {x_count} posts")
             if youtube_count:
                 sys.stderr.write(f"  {Colors.RED}YouTube:{Colors.RESET} {youtube_count} videos")
+            if web_count:
+                sys.stderr.write(f"  {Colors.GREEN}Web:{Colors.RESET} {web_count} pages{web_detail}")
             sys.stderr.write("\n\n")
         else:
             parts = [f"Reddit: {reddit_count} threads", f"X: {x_count} posts"]
             if youtube_count:
                 parts.append(f"YouTube: {youtube_count} videos")
+            if web_count:
+                parts.append(f"Web: {web_count} pages{web_detail}")
             sys.stderr.write(f"✓ Research complete ({elapsed:.1f}s) - {', '.join(parts)}\n")
         sys.stderr.flush()
 

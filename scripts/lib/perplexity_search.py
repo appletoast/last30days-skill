@@ -157,7 +157,7 @@ def _count_citation_references(content: str, num_citations: int) -> Dict[int, in
     if not content:
         return counts
     for i in range(1, num_citations + 1):
-        counts[i] = len(re.findall(rf'\[{i}\]', content))
+        counts[i] = len(re.findall(rf'\[{i}\](?!\d)', content))
     return counts
 
 
