@@ -118,7 +118,6 @@ def search_youtube(
         "yt-dlp",
         f"ytsearch{count}:{core_topic}",
         "--dump-json",
-        "--no-warnings",
         "--no-download",
     ]
 
@@ -324,7 +323,8 @@ def fetch_transcripts_parallel(
                 vid = futures[future]
                 try:
                     results[vid] = future.result()
-                except Exception:
+                except Exception as e:
+                    _log(f"Transcript error for {vid}: {e}")
                     results[vid] = None
 
     got = sum(1 for v in results.values() if v)
