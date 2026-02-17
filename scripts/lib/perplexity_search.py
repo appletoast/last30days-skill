@@ -96,6 +96,9 @@ def _normalize_results(response: Dict[str, Any]) -> List[Dict[str, Any]]:
         sys.stderr.flush()
         return items
 
+    # Count citation references in content to gauge per-citation importance
+    citation_counts = _count_citation_references(content, len(citations))
+
     for i, url in enumerate(citations):
         if not isinstance(url, str) or not url:
             continue
@@ -114,6 +117,14 @@ def _normalize_results(response: Dict[str, Any]) -> List[Dict[str, Any]]:
         title = _extract_title_for_citation(content, i + 1) or domain
         snippet = _extract_snippet_for_citation(content, i + 1)
 
+        # Estimate relevance from citation position and reference frequency.
+        # Earlier citations and more-referenced citations are more relevant.
+        # Range: 0.55 (last, single-ref) to 0.90 (first, multi-ref)
+        position_score = max(0.0, 1.0 - (i / max(len(citations), 1)))  # 1.0 → 0.0
+        ref_count = citation_counts.get(i + 1, 1)
+        ref_bonus = min(0.1, (ref_count - 1) * 0.05)  # +0.05 per extra ref, max +0.1
+        relevance = round(0.55 + 0.35 * position_score + ref_bonus, 2)
+
         items.append({
             "id": f"W{i+1}",
             "title": title[:200],
@@ -122,7 +133,7 @@ def _normalize_results(response: Dict[str, Any]) -> List[Dict[str, Any]]:
             "snippet": snippet[:500] if snippet else "",
             "date": None,
             "date_confidence": "low",
-            "relevance": 0.6,
+            "relevance": relevance,
             "why_relevant": "",
         })
 
@@ -138,6 +149,16 @@ def _get_content(response: Dict[str, Any]) -> str:
         return response["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):
         return ""
+
+
+def _count_citation_references(content: str, num_citations: int) -> Dict[int, int]:
+    """Count how many times each citation [N] is referenced in the content."""
+    counts = {}
+    if not content:
+        return counts
+    for i in range(1, num_citations + 1):
+        counts[i] = len(re.findall(rf'\[{i}\]', content))
+    return counts
 
 
 def _extract_title_for_citation(content: str, index: int) -> Optional[str]:

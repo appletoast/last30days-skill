@@ -339,29 +339,38 @@ def _search_single_backend(
 
 def _dedupe_web_results(results: list) -> list:
     """Deduplicate web results by normalized URL, keeping higher relevance score."""
-    from urllib.parse import urlparse, urlunparse
+    from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+
+    _TRACKING_PARAMS = {
+        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+        "utm_id", "fbclid", "gclid", "gclsrc", "dclid", "msclkid",
+        "mc_cid", "mc_eid", "ref", "ref_src", "ref_url",
+    }
+
+    def _normalize_url(raw_url: str) -> str:
+        parsed = urlparse(raw_url)
+        params = parse_qs(parsed.query, keep_blank_values=False)
+        cleaned = {k: v for k, v in params.items() if k.lower() not in _TRACKING_PARAMS}
+        query = urlencode(cleaned, doseq=True) if cleaned else ""
+        return urlunparse((
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            parsed.path.rstrip("/"),
+            parsed.params,
+            query,
+            "",  # drop fragment
+        ))
 
     seen = {}  # normalized_url -> item
     for item in results:
         raw_url = item.get("url", "")
         if not raw_url:
-            # No URL — keep it (can't dedup)
             seen[id(item)] = item
             continue
-        # Normalize: lowercase host, strip trailing slash, drop fragment
-        parsed = urlparse(raw_url)
-        normalized = urlunparse((
-            parsed.scheme.lower(),
-            parsed.netloc.lower(),
-            parsed.path.rstrip("/"),
-            parsed.params,
-            parsed.query,
-            "",  # drop fragment
-        ))
+        normalized = _normalize_url(raw_url)
         if normalized in seen:
             existing = seen[normalized]
-            # Keep the one with higher relevance_score (if present)
-            if item.get("relevance_score", 0) > existing.get("relevance_score", 0):
+            if item.get("relevance", 0) > existing.get("relevance", 0):
                 seen[normalized] = item
         else:
             seen[normalized] = item
