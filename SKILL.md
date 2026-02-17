@@ -95,13 +95,15 @@ The script will automatically:
 
 ---
 
-## STEP 2: DO WEBSEARCH AFTER SCRIPT COMPLETES
+## STEP 2: WEBSEARCH (only if script had no native web results)
 
-After the script finishes, do WebSearch to supplement with blogs, tutorials, and news.
+**Check the script output first.** If it contains a `### Web Results` section with results, native web search already ran (via Tavily + Perplexity). In that case, **skip this step entirely** and go straight to the Judge Agent.
 
-For **ALL modes**, do WebSearch to supplement (or provide all data in web-only mode).
+Only do WebSearch if:
+- The script output has NO `### Web Results` section, OR
+- The `### Web Results` section shows 0 results or an error
 
-Choose search queries based on QUERY_TYPE:
+When WebSearch IS needed, choose search queries based on QUERY_TYPE:
 
 **If RECOMMENDATIONS** ("best X", "top X", "what X should I use"):
 - Search for: `best {TOPIC} recommendations`
@@ -280,7 +282,7 @@ KEY PATTERNS from the research:
 ├─ 🟠 Reddit: {N} threads │ {N} upvotes │ {N} comments
 ├─ 🔵 X: {N} posts │ {N} likes │ {N} reposts
 ├─ 🔴 YouTube: {N} videos │ {N} views │ {N} with transcripts
-├─ 🌐 Web: {N} pages (supplementary)
+├─ 🌐 Web: {N} pages
 └─ 🗣️ Top voices: @{handle1} ({N} likes), @{handle2} │ r/{sub1}, r/{sub2}
 ---
 ```
