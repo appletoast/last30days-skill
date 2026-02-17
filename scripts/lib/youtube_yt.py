@@ -145,7 +145,11 @@ def search_youtube(
         return {"items": [], "error": "yt-dlp not found"}
 
     if not (stdout or "").strip():
-        _log("YouTube search returned 0 results")
+        stderr_msg = (stderr or "").strip()
+        if stderr_msg:
+            _log(f"YouTube search returned 0 results: {stderr_msg}")
+        else:
+            _log("YouTube search returned 0 results")
         return {"items": []}
 
     # Parse JSON-per-line output
