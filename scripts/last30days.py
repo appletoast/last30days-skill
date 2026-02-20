@@ -108,6 +108,7 @@ from lib import (
     render,
     schema,
     score,
+    tavily_reddit,
     ui,
     websearch,
     xai_x,
@@ -125,6 +126,89 @@ def load_fixture(name: str) -> dict:
 
 
 def _search_reddit(
+    topic: str,
+    config: dict,
+    selected_models: dict,
+    from_date: str,
+    to_date: str,
+    depth: str,
+    mock: bool,
+    reddit_backend: str = "openai",
+) -> tuple:
+    """Search Reddit via OpenAI or Tavily (runs in thread).
+
+    Args:
+        reddit_backend: 'openai' or 'tavily' - which backend to use
+
+    Returns:
+        Tuple of (reddit_items, raw_response, error)
+    """
+    if reddit_backend == "tavily":
+        return _search_reddit_tavily(topic, config, from_date, to_date, depth, mock)
+    return _search_reddit_openai(topic, config, selected_models, from_date, to_date, depth, mock)
+
+
+def _search_reddit_tavily(
+    topic: str,
+    config: dict,
+    from_date: str,
+    to_date: str,
+    depth: str,
+    mock: bool,
+) -> tuple:
+    """Search Reddit via Tavily (runs in thread).
+
+    Returns:
+        Tuple of (reddit_items, raw_response, error)
+    """
+    raw_response = None
+    reddit_error = None
+
+    tavily_key = config.get("TAVILY_API_KEY")
+    if not tavily_key:
+        sys.stderr.write("[Reddit] Tavily search unavailable (no API key)\n")
+        sys.stderr.flush()
+        return [], None, "Tavily API key not configured"
+
+    if mock:
+        raw_response = load_fixture("openai_sample.json")
+        reddit_items = openai_reddit.parse_reddit_response(raw_response or {})
+        return reddit_items, raw_response, reddit_error
+
+    try:
+        raw_response = tavily_reddit.search_reddit(
+            tavily_key, topic, from_date, to_date, depth=depth,
+        )
+    except http.HTTPError as e:
+        raw_response = {"error": str(e)}
+        reddit_error = f"API error: {e}"
+    except Exception as e:
+        raw_response = {"error": str(e)}
+        reddit_error = f"{type(e).__name__}: {e}"
+
+    # Parse response
+    reddit_items = tavily_reddit.parse_reddit_response(raw_response or {})
+
+    # Quick retry with simpler query if few results
+    if len(reddit_items) < 5 and not reddit_error:
+        core = tavily_reddit._extract_core_subject(topic)
+        if core.lower() != topic.lower():
+            try:
+                retry_raw = tavily_reddit.search_reddit(
+                    tavily_key, core, from_date, to_date, depth=depth,
+                )
+                retry_items = tavily_reddit.parse_reddit_response(retry_raw)
+                existing_urls = {item.get("url") for item in reddit_items}
+                for item in retry_items:
+                    if item.get("url") not in existing_urls:
+                        reddit_items.append(item)
+            except Exception:
+                pass
+
+    return reddit_items, raw_response, reddit_error
+
+
+def _search_reddit_openai(
     topic: str,
     config: dict,
     selected_models: dict,
@@ -619,6 +703,7 @@ def run_research(
     x_source: str = "xai",
     run_youtube: bool = False,
     timeouts: dict = None,
+    reddit_backend: str = "openai",
 ) -> tuple:
     """Run the research pipeline.
 
@@ -706,7 +791,7 @@ def run_research(
                 progress.start_reddit()
             reddit_future = executor.submit(
                 _search_reddit, topic, config, selected_models,
-                from_date, to_date, depth, mock
+                from_date, to_date, depth, mock, reddit_backend
             )
 
         if do_x:
@@ -951,6 +1036,12 @@ def main():
         metavar="SECS",
         help="Global timeout in seconds (default: 180, quick: 90, deep: 300)",
     )
+    parser.add_argument(
+        "--reddit-backend",
+        choices=["openai", "tavily"],
+        default="openai",
+        help="Backend for Reddit search (default: openai)",
+    )
 
     args = parser.parse_args()
 
@@ -1021,8 +1112,13 @@ def main():
 
     # Show diagnostic banner when sources are missing
     web_source = env.get_web_search_source(config)
+    # When using Tavily for Reddit, report Reddit as available in diagnostics
+    reddit_available = bool(config.get("OPENAI_API_KEY"))
+    if args.reddit_backend == 'tavily' and config.get('TAVILY_API_KEY'):
+        reddit_available = True
+
     diag = {
-        "openai": bool(config.get("OPENAI_API_KEY")),
+        "openai": reddit_available,
         "xai": bool(config.get("XAI_API_KEY")),
         "x_source": x_source_status["source"],
         "bird_installed": x_source_status["bird_installed"],
@@ -1042,6 +1138,23 @@ def main():
             available = 'both'  # Now have both Reddit + X (via Bird)
         elif available == 'web':
             available = 'x'  # Now have X via Bird
+
+    # Override available if using Tavily for Reddit (no OpenAI needed)
+    if args.reddit_backend == 'tavily' and config.get('TAVILY_API_KEY'):
+        if available in ('web', 'x-web'):
+            # Add Reddit capability
+            has_x = available in ('x-web',) or x_source == 'bird'
+            has_web = 'web' in available or env.has_web_search_keys(config)
+            if has_x and has_web:
+                available = 'all'
+            elif has_x:
+                available = 'both'
+            elif has_web:
+                available = 'reddit-web'
+            else:
+                available = 'reddit'
+        elif available == 'x':
+            available = 'both'
 
     # Mock mode can work without keys
     if args.mock:
@@ -1065,6 +1178,13 @@ def main():
 
     # Check what keys are missing for promo messaging
     missing_keys = env.get_missing_keys(config)
+
+    # When using Tavily for Reddit, don't show "unlock Reddit with OpenAI" promo
+    if args.reddit_backend == 'tavily' and config.get('TAVILY_API_KEY'):
+        if missing_keys == 'reddit':
+            missing_keys = 'none'
+        elif missing_keys == 'all':
+            missing_keys = 'x'
 
     # Show NUX / promo for missing keys BEFORE research
     if missing_keys != 'none':
@@ -1119,6 +1239,7 @@ def main():
         x_source=x_source or "xai",
         run_youtube=has_ytdlp,
         timeouts=timeouts,
+        reddit_backend=args.reddit_backend,
     )
 
     # Count per-backend web results before normalization strips _backend tag
