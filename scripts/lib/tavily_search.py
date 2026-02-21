@@ -111,6 +111,11 @@ def _normalize_results(response: Dict[str, Any]) -> List[Dict[str, Any]]:
         except (TypeError, ValueError):
             relevance = 0.6
 
+        # Skip low-relevance results (Tavily returns up to max_results even
+        # when tail results are tangentially related noise)
+        if relevance < 0.3:
+            continue
+
         # Tavily may include published_date
         date = result.get("published_date")
         if date and len(date) >= 10:
