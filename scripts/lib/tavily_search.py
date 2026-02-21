@@ -112,8 +112,10 @@ def _normalize_results(response: Dict[str, Any]) -> List[Dict[str, Any]]:
             relevance = 0.6
 
         # Skip low-relevance results (Tavily returns up to max_results even
-        # when tail results are tangentially related noise)
-        if relevance < 0.3:
+        # when tail results are tangentially related noise). Threshold of 0.5
+        # reflects the scoring math: undated results need Tavily score > 0.636
+        # to escape score=0 after penalties, so 0.5 cuts most junk early.
+        if relevance < 0.5:
             continue
 
         # Tavily may include published_date
